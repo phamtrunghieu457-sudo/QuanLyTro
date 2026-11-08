@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản Lý Phòng Trọ</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/pages.css">
+    <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <span class="logo-icon">🏠</span>
+                <h1>QL Phòng Trọ</h1>
+            </div>
+            <nav class="nav">
+                <button class="nav-item active" data-page="dashboard">
+                    <span>📊</span> Tổng quan
+                </button>
+                <button class="nav-item" data-page="rooms">
+                    <span>🚪</span> Quản lý phòng
+                </button>
+                <button class="nav-item" data-page="tenants">
+                    <span>👥</span> Khách thuê
+                </button>
+                <button class="nav-item" data-page="invoices">
+                    <span>🧾</span> Hóa đơn
+                </button>
+            </nav>
+        </aside>
+
+        <!-- Main content -->
+        <main class="main">
+            <header class="header">
+                <h2 id="page-title">Tổng quan</h2>
+                <div class="header-date" id="current-date"></div>
+            </header>
+
+            <!-- Dashboard -->
+            <section class="page active" id="page-dashboard">
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-icon blue">🚪</div>
+                        <div>
+                            <p class="stat-label">Tổng số phòng</p>
+                            <h3 class="stat-value" id="stat-total-rooms">0</h3>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green">✅</div>
+                        <div>
+                            <p class="stat-label">Phòng đã thuê</p>
+                            <h3 class="stat-value" id="stat-rented-rooms">0</h3>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon orange">🛏️</div>
+                        <div>
+                            <p class="stat-label">Phòng trống</p>
+                            <h3 class="stat-value" id="stat-empty-rooms">0</h3>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon purple">💰</div>
+                        <div>
+                            <p class="stat-label">Doanh thu tháng</p>
+                            <h3 class="stat-value" id="stat-revenue">0 đ</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Phòng trống gần đây</h3>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Phòng</th>
+                                    <th>Diện tích</th>
+                                    <th>Giá thuê</th>
+                                    <th>Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashboard-rooms"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Rooms -->
+            <section class="page" id="page-rooms">
+                <div class="rooms-layout">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Danh sách phòng</h3>
+                            <button class="btn btn-primary" id="btn-add-room">+ Thêm phòng</button>
+                        </div>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Mã phòng</th>
+                                        <th>Tên phòng</th>
+                                        <th>Diện tích (m²)</th>
+                                        <th>Giá thuê</th>
+                                        <th>Điện</th>
+                                        <th>Nước</th>
+                                        <th>Trạng thái</th>
+                                        <th>Hành động</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rooms-table"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Bảng nhập chỉ số điện nước theo tháng</h3>
+                        </div>
+                        <div id="room-usage-grid" class="usage-grid"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tenants -->
+            <section class="page" id="page-tenants">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Chọn phòng để thêm khách thuê</h3>
+                    </div>
+                    <div id="tenant-room-list" class="room-picker"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Danh sách khách thuê</h3>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Họ tên</th>
+                                    <th>SĐT</th>
+                                    <th>CCCD</th>
+                                    <th>Phòng</th>
+                                    <th>Ngày vào</th>
+                                    <th>Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tenants-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Invoices -->
+            <section class="page" id="page-invoices">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Hóa đơn</h3>
+                        <button class="btn btn-primary" id="btn-add-invoice">+ Tạo hóa đơn</button>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Mã HĐ</th>
+                                    <th>Phòng</th>
+                                    <th>Tháng</th>
+                                    <th>Tiền phòng</th>
+                                    <th>Điện</th>
+                                    <th>Nước</th>
+                                    <th>Tổng</th>
+                                    <th>Trạng thái</th>
+                                    <th>Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoices-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Thêm mới</h3>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script src="js/state.js"></script>
+    <script src="js/navigation.js"></script>
+    <script src="js/features/views.js"></script>
+    <script src="js/modals.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
