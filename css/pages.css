@@ -252,3 +252,6 @@ tbody tr:hover {
 .room-selected:hover {
     background: #dbeafe;
 }
+
+.usage-add-month { margin: 8px; }
+

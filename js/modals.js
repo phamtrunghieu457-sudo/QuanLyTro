@@ -10,7 +10,7 @@ modal.onclick = e => { if (e.target === modal) closeModal(); };
 // ===== Room Modal =====
 function openRoomModal(room = null, index = -1) {
     modalTitle.textContent = room ? 'Sửa phòng' : 'Thêm phòng';
-    const r = room || { id: '', name: '', area: '', price: '', electricity: 0, water: 0, usage: getUsageMonthList().map(month => ({ month, electric: '', water: '' })), status: 'empty' };
+    const r = room || { id: '', name: '', area: '', price: '', electricity: 0, water: 0, usage: [], status: 'empty' };
     modalBody.innerHTML = `
         <div class="form-group">
             <label>Mã phòng</label>
@@ -21,20 +21,8 @@ function openRoomModal(room = null, index = -1) {
             <input id="f-room-name" value="${r.name}" placeholder="VD: Phòng 101">
         </div>
         <div class="form-group">
-            <label>Diện tích (m²)</label>
-            <input id="f-room-area" type="number" value="${r.area}" placeholder="VD: 25">
-        </div>
-        <div class="form-group">
             <label>Giá thuê (đ)</label>
             <input id="f-room-price" type="number" value="${r.price}" placeholder="VD: 3000000">
-        </div>
-        <div class="form-group">
-            <label>Chỉ số điện hiện tại (kWh)</label>
-            <input id="f-room-electricity" type="number" value="${r.electricity ?? 0}" placeholder="VD: 120">
-        </div>
-        <div class="form-group">
-            <label>Chỉ số nước hiện tại</label>
-            <input id="f-room-water" type="number" value="${r.water ?? 0}" placeholder="VD: 70">
         </div>
         <div class="form-group">
             <label>Trạng thái</label>
@@ -54,10 +42,12 @@ function openRoomModal(room = null, index = -1) {
         const data = {
             id: document.getElementById('f-room-id').value.trim(),
             name: document.getElementById('f-room-name').value.trim(),
-            area: +document.getElementById('f-room-area').value,
+            createdAt: r.createdAt || currentLocalDate(),
+            area: r.area ?? '',
             price: +document.getElementById('f-room-price').value,
-            electricity: +document.getElementById('f-room-electricity').value || 0,
-            water: +document.getElementById('f-room-water').value || 0,
+            electricity: r.electricity ?? 0,
+            water: r.water ?? 0,
+            usage: r.usage || [],
             status: document.getElementById('f-room-status').value
         };
         if (!data.id || !data.name) {
@@ -111,6 +101,8 @@ function openTenantModal(tenant = null, index = -1, roomId = '') {
 
     document.getElementById('btn-save-tenant').onclick = () => {
         const data = {
+            id: t.id || genId('KT'),
+            status: t.status || 'active',
             name: document.getElementById('f-t-name').value.trim(),
             phone: document.getElementById('f-t-phone').value.trim(),
             cccd: document.getElementById('f-t-cccd').value.trim(),
@@ -133,12 +125,12 @@ function openTenantModal(tenant = null, index = -1, roomId = '') {
 }
 
 // ===== Invoice Modal =====
-function openInvoiceModal() {
+function openInvoiceModal(initialRoomId = '') {
     modalTitle.textContent = 'Tạo hóa đơn';
     const now = new Date();
     const defaultMonth = `${now.getMonth() + 1}/${now.getFullYear()}`;
     const roomOptions = rooms.map(r =>
-        `<option value="${r.id}">${r.name} - ${fmtMoney(r.price)}</option>`
+        `<option value="${r.id}" ${r.id === initialRoomId ? 'selected' : ''}>${r.name} - ${fmtMoney(r.price)}</option>`
     ).join('');
 
     modalBody.innerHTML = `
@@ -200,6 +192,12 @@ function openInvoiceModal() {
         }
     };
 
+    if (initialRoomId) {
+        const roomSelect = document.getElementById('f-i-room');
+        roomSelect.value = initialRoomId;
+        roomSelect.dispatchEvent(new Event('change'));
+    }
+
     modal.classList.add('active');
 
     document.getElementById('btn-save-invoice').onclick = () => {
@@ -231,3 +229,7 @@ function openInvoiceModal() {
         save(); renderAll(); closeModal();
     };
 }
+
+
+
+

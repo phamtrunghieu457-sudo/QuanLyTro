@@ -9,15 +9,18 @@ function renderUsageBoard() {
         return;
     }
 
-    const months = getUsageMonthList();
     const room = normalizeRoom(selectedRoom);
-    const rows = months.map(month => {
-        const item = room.usage.find(x => x.month === month) || { month, electric: '', water: '' };
+    const rows = room.usage.map(item => {
+        const month = item.month;
+        const debt = invoices
+            .filter(invoice => invoice.roomId === room.id && invoice.month === month && invoice.status !== 'paid')
+            .reduce((sum, invoice) => sum + Number(invoice.total ?? (Number(invoice.roomFee || 0) + Number(invoice.electric || 0) + Number(invoice.water || 0))), 0);
         return `
             <tr>
                 <td>${month}</td>
                 <td><input type="number" min="0" value="${item.electric ?? ''}" data-room-id="${room.id}" data-month="${month}" data-field="electric"></td>
                 <td><input type="number" min="0" value="${item.water ?? ''}" data-room-id="${room.id}" data-month="${month}" data-field="water"></td>
+                <td><input type="number" min="0" value="${item.debt ?? debt}" data-room-id="${room.id}" data-month="${month}" data-field="debt"></td>
             </tr>
         `;
     }).join('');
@@ -32,11 +35,13 @@ function renderUsageBoard() {
                             <th>Tháng</th>
                             <th>Số điện</th>
                             <th>Nước</th>
+                            <th>Còn nợ</th>
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>
                 </table>
             </div>
+            <button class="btn btn-sm btn-primary usage-add-month" type="button" onclick="addUsageMonth('${room.id}')">+ Thêm tháng</button>
         </div>
     `;
 
@@ -52,6 +57,19 @@ function renderUsageBoard() {
         });
     });
 }
+
+window.addUsageMonth = roomId => {
+    const room = rooms.find(item => item.id === roomId);
+    if (!room) return;
+    normalizeRoom(room);
+    const lastIndex = room.usage.length
+        ? monthIndex(room.usage[room.usage.length - 1].month)
+        : monthIndexFromDate(room.createdAt);
+    const nextMonth = monthLabel(lastIndex + 1);
+    room.usage.push({ month: nextMonth, electric: '', water: '', addedByUser: true });
+    save();
+    renderUsageBoard();
+};
 
 // ===== Dashboard =====
 function renderDashboard() {
@@ -91,17 +109,14 @@ function renderDashboard() {
 function renderRooms() {
     const tbody = document.getElementById('rooms-table');
     if (rooms.length === 0) {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="8">Chưa có phòng nào. Nhấn "Thêm phòng" để bắt đầu.</td></tr>';
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Chưa có phòng nào. Nhấn "Thêm phòng" để bắt đầu.</td></tr>';
         return;
     }
     tbody.innerHTML = rooms.map((r, i) => `
         <tr class="${r.id === selectedRoomId ? 'room-selected' : ''}">
             <td>${r.id}</td>
             <td><b>${r.name}</b></td>
-            <td>${r.area}</td>
             <td>${fmtMoney(r.price)}</td>
-            <td>${r.electricity ?? 0}</td>
-            <td>${r.water ?? 0}</td>
             <td>
                 <span class="badge ${r.status === 'rented' ? 'badge-rented' : 'badge-empty'}">
                     ${r.status === 'rented' ? 'Đã thuê' : 'Trống'}
@@ -134,70 +149,157 @@ window.deleteRoom = i => {
 };
 
 // ===== Tenants =====
+let selectedTenantRoomId = null;
+
 function renderTenants() {
     const roomList = document.getElementById('tenant-room-list');
+    const addButton = document.getElementById('btn-add-tenant');
     if (rooms.length === 0) {
         roomList.innerHTML = '<p class="room-picker-empty">Chưa có phòng. Hãy thêm phòng trước khi nhập khách thuê.</p>';
     } else {
+        if (!rooms.some(room => room.id === selectedTenantRoomId)) selectedTenantRoomId = null;
         roomList.innerHTML = rooms.map((room, i) => {
-            const roomTenants = tenants.filter(tenant => tenant.roomId === room.id);
-            const tenantLabel = roomTenants.length === 0
-                ? 'Chưa có khách thuê'
-                : `${roomTenants.length} khách thuê`;
+            const activeCount = tenants.filter(tenant => tenant.roomId === room.id && tenant.status !== 'departed').length;
+            const tenantLabel = activeCount === 0 ? 'Chưa có khách đang thuê' : `${activeCount} khách đang thuê`;
             return `
-                <button class="room-picker-item" type="button" onclick="selectTenantRoom(${i})">
+                <button class="room-picker-item ${room.id === selectedTenantRoomId ? 'room-selected' : ''}" type="button" onclick="selectTenantRoom(${i})">
                     <span class="room-picker-number">${room.id}</span>
                     ${room.name && room.name !== room.id ? `<span class="room-picker-id">${room.name}</span>` : ''}
-                    <span class="room-picker-status ${roomTenants.length ? 'occupied' : ''}">${tenantLabel}</span>
+                    <span class="room-picker-status ${activeCount ? 'occupied' : ''}">${tenantLabel}</span>
                 </button>
             `;
         }).join('');
     }
 
-    const tbody = document.getElementById('tenants-table');
-    if (tenants.length === 0) {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Chưa có khách thuê nào.</td></tr>';
+    if (addButton) {
+        addButton.disabled = !selectedTenantRoomId;
+        addButton.onclick = () => {
+            if (selectedTenantRoomId) openTenantModal(null, -1, selectedTenantRoomId);
+        };
+    }
+
+    const activeBody = document.getElementById('active-tenants-table');
+    const departedBody = document.getElementById('departed-tenants-table');
+    if (!selectedTenantRoomId) {
+        const message = rooms.length ? 'Chọn phòng để xem danh sách khách thuê.' : 'Chưa có khách thuê nào.';
+        activeBody.innerHTML = `<tr class="empty-row"><td colspan="6">${message}</td></tr>`;
+        departedBody.innerHTML = `<tr class="empty-row"><td colspan="6">${message}</td></tr>`;
         return;
     }
-    tbody.innerHTML = tenants.map((t, i) => {
-        const room = rooms.find(r => r.id === t.roomId);
-        return `
+
+    const room = rooms.find(item => item.id === selectedTenantRoomId);
+    const roomName = room ? room.name : 'N/A';
+    const activeTenants = tenants.map((tenant, index) => ({ tenant, index }))
+        .filter(({ tenant }) => tenant.roomId === selectedTenantRoomId && tenant.status !== 'departed');
+    const departedTenants = tenants.map((tenant, index) => ({ tenant, index }))
+        .filter(({ tenant }) => tenant.roomId === selectedTenantRoomId && tenant.status === 'departed')
+        .sort((a, b) => (b.tenant.departedAt || '').localeCompare(a.tenant.departedAt || '') || (b.tenant.departureOrder || 0) - (a.tenant.departureOrder || 0));
+
+    activeBody.innerHTML = activeTenants.length ? activeTenants.map(({ tenant, index }) => `
         <tr>
-            <td><b>${t.name}</b></td>
-            <td>${t.phone}</td>
-            <td>${t.cccd || '-'}</td>
-            <td>${room ? room.name : 'N/A'}</td>
-            <td>${fmtDate(t.startDate)}</td>
+            <td><b>${tenant.name}</b></td>
+            <td>${tenant.phone}</td>
+            <td>${tenant.cccd || '-'}</td>
+            <td>${roomName}</td>
+            <td>${fmtDate(tenant.startDate)}</td>
             <td>
-                <button class="btn btn-sm btn-edit" onclick="editTenant(${i})">Sửa</button>
-                <button class="btn btn-sm btn-delete" onclick="deleteTenant(${i})">Xóa</button>
+                <button class="btn btn-sm btn-edit" onclick="editTenant(${index})">Sửa</button>
+                <button class="btn btn-sm btn-delete" onclick="deleteTenant(${index})">Chuyển đi</button>
             </td>
         </tr>
-        `;
-    }).join('');
+    `).join('') : '<tr class="empty-row"><td colspan="6">Chưa có khách đang thuê ở phòng này.</td></tr>';
+
+    departedBody.innerHTML = departedTenants.length ? departedTenants.map(({ tenant }) => `
+        <tr>
+            <td><b>${tenant.name}</b></td>
+            <td>${tenant.phone}</td>
+            <td>${tenant.cccd || '-'}</td>
+            <td>${roomName}</td>
+            <td>${fmtDate(tenant.startDate)}</td>
+            <td>${fmtDate(tenant.departedAt)}</td>
+        </tr>
+    `).join('') : '<tr class="empty-row"><td colspan="6">Chưa có khách đã đi ở phòng này.</td></tr>';
 }
 
 window.selectTenantRoom = i => {
     const room = rooms[i];
-    if (room) openTenantModal(null, -1, room.id);
+    if (!room) return;
+    selectedTenantRoomId = room.id;
+    renderTenants();
 };
 
-window.editTenant = i => openTenantModal(tenants[i], i);
+window.editTenant = i => {
+    const tenant = tenants[i];
+    if (tenant && tenant.status !== 'departed') openTenantModal(tenant, i);
+};
 window.deleteTenant = i => {
-    if (confirm('Xóa khách thuê này?')) {
-        tenants.splice(i, 1);
+    const tenant = tenants[i];
+    if (!tenant || tenant.status === 'departed') return;
+    if (confirm(`Chuyển khách ${tenant.name} sang danh sách khách đã đi?`)) {
+        tenants[i] = { ...tenant, status: 'departed', departedAt: currentLocalDate(), departureOrder: Date.now() };
+        const stillActive = tenants.some(item => item.roomId === tenant.roomId && item.status !== 'departed');
+        if (!stillActive) {
+            const room = rooms.find(item => item.id === tenant.roomId);
+            if (room) room.status = 'empty';
+        }
         save(); renderAll();
     }
 };
 
 // ===== Invoices =====
+let selectedInvoiceRoomId = null;
+
 function renderInvoices() {
+    const roomList = document.getElementById('invoice-room-list');
+    const addButton = document.getElementById('btn-add-invoice');
     const tbody = document.getElementById('invoices-table');
-    if (invoices.length === 0) {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="9">Chưa có hóa đơn nào.</td></tr>';
+
+    if (rooms.length === 0) {
+        selectedInvoiceRoomId = null;
+        roomList.innerHTML = '<p class="room-picker-empty">Chưa có phòng. Hãy thêm phòng trước khi tạo hóa đơn.</p>';
+    } else {
+        const hasUnassigned = invoices.some(invoice => !rooms.some(room => room.id === invoice.roomId));
+        if (selectedInvoiceRoomId !== '__unassigned__' && !rooms.some(room => room.id === selectedInvoiceRoomId)) selectedInvoiceRoomId = null;
+        if (selectedInvoiceRoomId === '__unassigned__' && !hasUnassigned) selectedInvoiceRoomId = null;
+        roomList.innerHTML = rooms.map((room, i) => {
+            const count = invoices.filter(invoice => invoice.roomId === room.id).length;
+            return `
+                <button class="room-picker-item ${room.id === selectedInvoiceRoomId ? 'room-selected' : ''}" type="button" onclick="selectInvoiceRoom(${i})">
+                    <span class="room-picker-number">${room.id}</span>
+                    ${room.name && room.name !== room.id ? `<span class="room-picker-id">${room.name}</span>` : ''}
+                    <span class="room-picker-status">${count} hóa đơn</span>
+                </button>
+            `;
+        }).join('') + (hasUnassigned ? `
+            <button class="room-picker-item ${selectedInvoiceRoomId === '__unassigned__' ? 'room-selected' : ''}" type="button" onclick="selectUnassignedInvoices()">
+                <span class="room-picker-number">Phòng không xác định</span>
+                <span class="room-picker-status">${invoices.filter(invoice => !rooms.some(room => room.id === invoice.roomId)).length} hóa đơn</span>
+            </button>` : '');
+    }
+
+    if (addButton) {
+        addButton.disabled = !selectedInvoiceRoomId || selectedInvoiceRoomId === '__unassigned__';
+        addButton.onclick = () => {
+            if (selectedInvoiceRoomId && selectedInvoiceRoomId !== '__unassigned__') openInvoiceModal(selectedInvoiceRoomId);
+        };
+    }
+
+    if (!selectedInvoiceRoomId) {
+        const message = rooms.length ? 'Chọn phòng để xem hóa đơn.' : 'Chưa có phòng để hiển thị hóa đơn.';
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="9">${message}</td></tr>`;
         return;
     }
-    tbody.innerHTML = invoices.map((inv, i) => {
+
+    const visibleInvoices = invoices.map((invoice, index) => ({ invoice, index }))
+        .filter(({ invoice }) => selectedInvoiceRoomId === '__unassigned__'
+            ? !rooms.some(room => room.id === invoice.roomId)
+            : invoice.roomId === selectedInvoiceRoomId);
+    if (visibleInvoices.length === 0) {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="9">Phòng này chưa có hóa đơn.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = visibleInvoices.map(({ invoice: inv, index: i }) => {
         const room = rooms.find(r => r.id === inv.roomId);
         return `
         <tr>
@@ -222,6 +324,18 @@ function renderInvoices() {
     }).join('');
 }
 
+window.selectInvoiceRoom = i => {
+    const room = rooms[i];
+    if (!room) return;
+    selectedInvoiceRoomId = room.id;
+    renderInvoices();
+};
+
+window.selectUnassignedInvoices = () => {
+    selectedInvoiceRoomId = '__unassigned__';
+    renderInvoices();
+};
+
 window.payInvoice = i => {
     invoices[i].status = 'paid';
     save(); renderAll();
@@ -233,3 +347,4 @@ window.deleteInvoice = i => {
         save(); renderAll();
     }
 };
+

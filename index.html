@@ -106,10 +106,7 @@
                                     <tr>
                                         <th>Mã phòng</th>
                                         <th>Tên phòng</th>
-                                        <th>Diện tích (m²)</th>
                                         <th>Giá thuê</th>
-                                        <th>Điện</th>
-                                        <th>Nước</th>
                                         <th>Trạng thái</th>
                                         <th>Hành động</th>
                                     </tr>
@@ -132,14 +129,15 @@
             <section class="page" id="page-tenants">
                 <div class="card">
                     <div class="card-header">
-                        <h3>Chọn phòng để thêm khách thuê</h3>
+                        <h3>Chọn phòng để xem danh sách khách thuê</h3>
                     </div>
                     <div id="tenant-room-list" class="room-picker"></div>
                 </div>
 
                 <div class="card">
                     <div class="card-header">
-                        <h3>Danh sách khách thuê</h3>
+                        <h3>Khách đang thuê</h3>
+                        <button class="btn btn-primary" id="btn-add-tenant" type="button" disabled>+ Thêm khách thuê</button>
                     </div>
                     <div class="table-wrap">
                         <table>
@@ -153,7 +151,28 @@
                                     <th>Hành động</th>
                                 </tr>
                             </thead>
-                            <tbody id="tenants-table"></tbody>
+                            <tbody id="active-tenants-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Khách đã đi</h3>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Họ tên</th>
+                                    <th>SĐT</th>
+                                    <th>CCCD</th>
+                                    <th>Phòng</th>
+                                    <th>Ngày vào</th>
+                                    <th>Ngày rời</th>
+                                </tr>
+                            </thead>
+                            <tbody id="departed-tenants-table"></tbody>
                         </table>
                     </div>
                 </div>
@@ -163,9 +182,10 @@
             <section class="page" id="page-invoices">
                 <div class="card">
                     <div class="card-header">
-                        <h3>Hóa đơn</h3>
-                        <button class="btn btn-primary" id="btn-add-invoice">+ Tạo hóa đơn</button>
+                        <h3>Chọn phòng để xem hóa đơn</h3>
+                        <button class="btn btn-primary" id="btn-add-invoice" type="button" disabled>+ Tạo hóa đơn</button>
                     </div>
+                    <div id="invoice-room-list" class="room-picker"></div>
                     <div class="table-wrap">
                         <table>
                             <thead>
@@ -199,7 +219,8 @@
             <div class="modal-body" id="modal-body"></div>
         </div>
     </div>
-
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
     <script src="js/state.js"></script>
     <script src="js/navigation.js"></script>
     <script src="js/features/views.js"></script>
